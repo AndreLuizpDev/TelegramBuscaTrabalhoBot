@@ -3,6 +3,12 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
+# Config files
+app.config
+obj
+
+.git
+
 # User-specific files
 *.rsuser
 *.suo
