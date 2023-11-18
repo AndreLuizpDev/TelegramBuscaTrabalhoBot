@@ -76,6 +76,7 @@ CREATE TABLE Application (
     ID INT PRIMARY KEY,
     FreelancerID INT,
     JobID INT,
+    VacantID INT,
     ProposalDetails VARCHAR(255),
     ProposedHourlyRate FLOAT,
     TotalHours INT,
@@ -85,7 +86,8 @@ CREATE TABLE Application (
     RejectedDate DATETIME,
     EmployerObservation VARCHAR(255),
     FOREIGN KEY (FreelancerID) REFERENCES Freelancer(ID),
-    FOREIGN KEY (JobID) REFERENCES Vacant(ID)
+    FOREIGN KEY (JobID) REFERENCES FreelancerJob(ID),
+    FOREIGN KEY (VacantID) REFERENCES Vacant(ID)
 );
 
 CREATE TABLE CompanyToFreelancerReview (

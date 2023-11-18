@@ -69,6 +69,7 @@
 - **ID**: Identificador único da aplicação.
 - **FreelancerID**: ID do freelancer que aplicou para a vaga.
 - **JobID**: ID do trabalho freelancer aplicado.
+- **VacantID**: ID da vaga à qual a aplicação se refere.
 - **ProposalDetails**: Detalhes da proposta do freelancer.
 - **ProposedHourlyRate**: Taxa horária proposta pelo freelancer.
 - **TotalHours**: Total de horas estimadas para o trabalho freelancer.
