@@ -8,6 +8,8 @@ using Telegram.Bot.Types.Enums;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
+using System.Xml.Linq;
+
 class Program
 {
     private static string connectionString = ConfigurationManager.AppSettings["TelegramBotConnection"];
@@ -69,40 +71,90 @@ class Program
 
         if (messageText != null)
         {
-
             List<string> availableCommands = GetAvailableCommands();
             string response = "Available commands:\n" + string.Join("\n", availableCommands);
 
-            if (messageText.StartsWith("/start"))
+            var Command = databaseService.VerificarEstadoMenu(chatId, messageText).ToString();
+
+            if (Command.StartsWith("/start"))
             {
                 await botClient.SendTextMessageAsync(chatId, "Welcome to our Job Search Bot! 🤖✨\r\nExplore opportunities, add your freelancer profile, and connect with other users. Use commands like \r\n/includeFreelancer or /listFreelancers to get started. 🚀💼\r\n");
             }
-            else if (messageText.StartsWith("/includeFreelancer"))
+            else if (Command.StartsWith("/includeFreelancer"))
             {
-                var parts = messageText.Split(';', StringSplitOptions.RemoveEmptyEntries); // Split the message into parts
-                if (parts.Length < 6)
+                var userState = databaseService.VerificarEstado(chatId);
+
+                var name = ""; var stacks = ""; var portfolio = ""; var contactTelegram = "";
+                var contactEmail = ""; var contactPhone = ""; var otherContacts = ""; decimal experienceTime = 0;
+                switch (userState)
                 {
-                    await botClient.SendTextMessageAsync(chatId, "Invalid format. Please use: /includeFreelancer <name>;<experience>;<ContatoTelegram>;<ContatoEmail>;<ContatoTelefonico>;<description>");
-                    return;
+                    case 1:
+                        await botClient.SendTextMessageAsync(chatId, "Digite seu nome: ");
+                        databaseService.AtualizarEstado(chatId, 2, "FreelancerState");
+                        break;
+                    case 2:
+                        name = messageText;
+                        databaseService.CreateFreelancer(chatId, name, stacks, experienceTime, portfolio, contactTelegram, contactEmail, contactPhone, otherContacts);
+                        await botClient.SendTextMessageAsync(chatId, "Stacks (separadas por vírgula): ");
+                        databaseService.AtualizarEstado(chatId, 3, "FreelancerState");
+                        break;
+                    case 3:
+                        stacks = messageText;
+                        databaseService.AtualizarFreelancer(chatId, stacks, "Stacks");
+                        await botClient.SendTextMessageAsync(chatId, "Tempo de experiência: ");
+                        databaseService.AtualizarEstado(chatId, 4, "FreelancerState");
+                        break;
+                    case 4:
+                        if (decimal.TryParse(messageText, out experienceTime))
+                        {
+                            databaseService.AtualizarFreelancer(chatId, experienceTime, "ExperienceTime");
+                            await botClient.SendTextMessageAsync(chatId, "Portfolio: ");
+                            databaseService.AtualizarEstado(chatId, 5, "FreelancerState");
+                        }
+                        else
+                        {
+                            Console.WriteLine("Por favor, insira um número válido para o tempo de experiência.");
+                            await botClient.SendTextMessageAsync(chatId, "Tempo de experiência: ");
+                        }
+                        break;
+                    case 5:
+                        portfolio = messageText;
+                        databaseService.AtualizarFreelancer(chatId, portfolio, "Portfolio");
+                        await botClient.SendTextMessageAsync(chatId, "Número de Contato (Formato: 5511999999999): ");
+                        databaseService.AtualizarEstado(chatId, 6, "FreelancerState");
+                        break;
+                    case 6:
+                        // Aqui você pode lidar com a lógica para capturar o telefone e definir a variável contactTelegram
+                        contactTelegram = "t.me/+" + messageText;
+                        databaseService.AtualizarFreelancer(chatId, contactTelegram, "ContactTelegram");
+                        await botClient.SendTextMessageAsync(chatId, "Email de contato: ");
+                        databaseService.AtualizarEstado(chatId, 7, "FreelancerState");
+                        break;
+                    case 7:
+                        contactEmail = messageText;
+                        databaseService.AtualizarFreelancer(chatId, contactEmail, "ContactEmail");
+                        await botClient.SendTextMessageAsync(chatId, "Telefone de contato: ");
+                        databaseService.AtualizarEstado(chatId, 8, "FreelancerState");
+                        break;
+                    case 8:
+                        contactPhone = messageText;
+                        databaseService.AtualizarFreelancer(chatId, contactPhone, "ContactPhone");
+                        await botClient.SendTextMessageAsync(chatId, "Outros contatos: ");
+                        databaseService.AtualizarEstado(chatId, 9, "FreelancerState");
+                        break;
+                    case 9:
+                        otherContacts = messageText;
+                        databaseService.AtualizarFreelancer(chatId, otherContacts, "OtherContacts");
+                        // Aqui você tem todas as informações necessárias para criar o usuário ou realizar ação final
+                        await botClient.SendTextMessageAsync(chatId, "Usuário criado com sucesso.");
+                        databaseService.AtualizarEstado(chatId, 10, "FreelancerState");
+                        break;
+                    case 10:
+                        await botClient.SendTextMessageAsync(chatId, "Welcome to our Job Search Bot! 🤖✨\r\nExplore opportunities, add your freelancer profile, and connect with other users. Use commands like \r\n/includeFreelancer or /listFreelancers to get started. 🚀💼\r\n");
+                        break;
                 }
-
-                var name = parts[0].Replace("/includeFreelancer ", "");
-                var experience = int.Parse(parts[1]);
-                var contatoTelegram = parts[2];
-                var contatoEmail = parts[3];
-                var contatoTelefonico = parts[4];
-                var description = parts[5];
-
-                databaseService.CreateUser(chatId, name, experience, contatoTelegram, contatoEmail, contatoTelefonico, description);
-                await botClient.SendTextMessageAsync(chatId, "User created successfully.");
-
-                var body = Encoding.UTF8.GetBytes($"{chatId};{name};{experience};{contatoTelegram};{contatoEmail};{contatoTelefonico};{description}");
-                channel.BasicPublish(exchange: "",
-                                     routingKey: "UserQueue",
-                                     basicProperties: null,
-                                     body: body);
             }
-            else if (messageText.StartsWith("/listFreelancers"))
+            else if (Command.StartsWith("/listFreelancers"))
             {
 
                 List<string> userList = databaseService.GetUsersList();
@@ -110,7 +162,8 @@ class Program
                 // Enviar cada item da lista como uma mensagem separada
                 foreach (var user in userList)
                 {
-                    await botClient.SendTextMessageAsync(chatId, user, parseMode: ParseMode.Markdown);
+                    Console.WriteLine(user);
+                    await botClient.SendTextMessageAsync(chatId, user, parseMode: ParseMode.MarkdownV2);
                     // Aguarde um curto período de tempo entre as mensagens para evitar limites do Telegram
                     await Task.Delay(500);
                 }

@@ -1,0 +1,146 @@
+﻿--https://app.diagrams.net/#HAndreLuizpDev%2FTelegramBuscaTrabalhoBot%2Fmain%2Fdocs%2FTelegramBuscaTrabalhoBot.drawio
+
+--CREATE TABLE Freelancer (
+--    ID INT PRIMARY KEY  AUTO_INCREMENT,
+--    UserTelegramID VARCHAR(255),
+--    Name VARCHAR(255),
+--    Stacks VARCHAR(255),
+--    ExperienceTime DECIMAL(5,2),
+--    Portfolio VARCHAR(255),
+--    ContactTelegram VARCHAR(255),
+--    ContactEmail VARCHAR(255),
+--    ContactPhone VARCHAR(255),
+--    OtherContacts VARCHAR(255),
+--    Status TINYINT(1),
+--    Verified TINYINT(1),
+--    LastUpdate DATETIME,
+--    RegistrationDate DATETIME,
+--    InactiveDate DATETIME
+--);
+
+--CREATE TABLE Company (
+--    ID INT PRIMARY KEY  AUTO_INCREMENT,
+--    UserTelegramID VARCHAR(255),
+--    Name VARCHAR(255),
+--    State VARCHAR(100),
+--    Country VARCHAR(100),
+--    ContactTelegram VARCHAR(255),
+--    ContactEmail VARCHAR(255),
+--    ContactPhone VARCHAR(255),
+--    OtherContacts VARCHAR(255),
+--    Status TINYINT(1),
+--    Verified TINYINT(1),
+--    LastUpdate DATETIME,
+--    RegistrationDate DATETIME,
+--    InactiveDate DATETIME
+--);
+
+--CREATE TABLE Vacant (
+--    ID INT PRIMARY KEY  AUTO_INCREMENT,
+--    CompanyID INT,
+--    VacantName VARCHAR(255),
+--    Description VARCHAR(255),
+--    SkillsRequired VARCHAR(255),
+--    SpecialSkills VARCHAR(255),
+--    Benefits VARCHAR(255),
+--    Modality VARCHAR(100),
+--    CoverageCity VARCHAR(100),
+--    CoverageState VARCHAR(100),
+--    CoverageCountry VARCHAR(100),
+--    BudgetMin FLOAT,
+--    BudgetMax FLOAT,
+--    Status TINYINT(1),
+--    CreationDate DATETIME,
+--    LastUpdate DATETIME,
+--    ExclusionDate DATETIME,
+--    FOREIGN KEY (CompanyID) REFERENCES Company(ID)
+--);
+
+--CREATE TABLE FreelancerJob (
+--    ID INT PRIMARY KEY  AUTO_INCREMENT,
+--    EmployerID INT,
+--    Description VARCHAR(255),
+--    ProjectType VARCHAR(50),
+--    SkillsRequired VARCHAR(255),
+--    SpecialSkills VARCHAR(255),
+--    BudgetMin FLOAT,
+--    BudgetMax FLOAT,
+--    Status TINYINT(1),
+--    ExpirationDate DATETIME,
+--    CreationDate DATETIME,
+--    LastUpdate DATETIME,
+--    ExclusionDate DATETIME,
+--    FOREIGN KEY (EmployerID) REFERENCES Company(ID)
+--);
+
+--CREATE TABLE Application (
+--    ID INT PRIMARY KEY  AUTO_INCREMENT,
+--    FreelancerID INT,
+--    JobID INT,
+--    VacantID INT,
+--    ProposalDetails VARCHAR(255),
+--    ProposedHourlyRate FLOAT,
+--    TotalHours INT,
+--    Status TINYINT(1),
+--    SubmissionDate DATETIME,
+--    AcceptedDate DATETIME,
+--    RejectedDate DATETIME,
+--    EmployerObservation VARCHAR(255),
+--    FOREIGN KEY (FreelancerID) REFERENCES Freelancer(ID),
+--    FOREIGN KEY (JobID) REFERENCES FreelancerJob(ID),
+--    FOREIGN KEY (VacantID) REFERENCES Vacant(ID)
+--);
+
+--CREATE TABLE CompanyToFreelancerReview (
+--    ID INT PRIMARY KEY  AUTO_INCREMENT,
+--    CompanyID INT,
+--    FreelancerID INT,
+--    JobID INT,
+--    Rating INT,
+--    Comment VARCHAR(255),
+--    ReviewDate DATETIME,
+--    FOREIGN KEY (CompanyID) REFERENCES Company(ID),
+--    FOREIGN KEY (FreelancerID) REFERENCES Freelancer(ID),
+--    FOREIGN KEY (JobID) REFERENCES Vacant(ID)
+--);
+
+--CREATE TABLE FreelancerToCompanyReview (
+--    ID INT PRIMARY KEY  AUTO_INCREMENT,
+--    FreelancerID INT,
+--    CompanyID INT,
+--    JobID INT,
+--    Rating INT,
+--    Comment VARCHAR(255),
+--    ReviewDate DATETIME,
+--    FOREIGN KEY (FreelancerID) REFERENCES Freelancer(ID),
+--    FOREIGN KEY (CompanyID) REFERENCES Company(ID),
+--    FOREIGN KEY (JobID) REFERENCES Vacant(ID)
+--);
+
+--CREATE TABLE UserState (
+--    UserStateID INT PRIMARY KEY AUTO_INCREMENT,
+--    TelegramUserID INT,
+--    FreelancerID INT,
+--    CompanyID INT,
+--    VacantID INT,
+--    FreelancerJobID INT,
+--    ApplicationID INT,
+--    CompanyToFreelancerReviewID INT,
+--    FreelancerToCompanyReviewID INT,
+--    CurrentRegistration VARCHAR(255),
+--    FreelancerState BIGINT DEFAULT 1,
+--    CompanyState BIGINT DEFAULT 1,
+--    VacantState BIGINT DEFAULT 1,
+--    FreelancerJobState BIGINT DEFAULT 1,
+--    ApplicationState BIGINT DEFAULT 1,
+--    CompanyToFreelancerReviewState BIGINT DEFAULT 1,
+--    FreelancerToCompanyReviewState BIGINT DEFAULT 1,
+--    LastUpdate DATETIME,
+--    FOREIGN KEY (FreelancerID) REFERENCES Freelancer(ID),
+--    FOREIGN KEY (CompanyID) REFERENCES Company(ID),
+--    FOREIGN KEY (VacantID) REFERENCES Vacant(ID),
+--    FOREIGN KEY (FreelancerJobID) REFERENCES FreelancerJob(ID),
+--    FOREIGN KEY (ApplicationID) REFERENCES Application(ID),
+--    FOREIGN KEY (CompanyToFreelancerReviewID) REFERENCES CompanyToFreelancerReview(ID),
+--    FOREIGN KEY (FreelancerToCompanyReviewID) REFERENCES FreelancerToCompanyReview(ID)
+--);
