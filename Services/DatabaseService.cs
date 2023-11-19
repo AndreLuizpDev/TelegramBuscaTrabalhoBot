@@ -21,15 +21,7 @@ public class DatabaseService
         try
         {
             dbConnection.Open();
-            if (!CheckIfTableExists("users"))
-            {
-                CreateUsersTable();
-                Console.WriteLine("Users table created successfully.");
-            }
-            else
-            {
-                Console.WriteLine("Users table already exists.");
-            }
+            CreateTablesFromSQLFile();
         }
         catch (Exception ex)
         {
@@ -40,46 +32,28 @@ public class DatabaseService
             dbConnection.Close();
         }
     }
-
-    private bool CheckIfTableExists(string tableName)
+    public string CreateTablesFromSQLFile()
     {
-        using (var cmd = new MySqlCommand($"SHOW TABLES LIKE '{tableName}'", dbConnection))
-        {
-            return cmd.ExecuteScalar() != null;
-        }
-    }
-
-    private string CreateUsersTable()
-    {
-        string query = @"
-        CREATE TABLE users (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT NOT NULL,
-            name VARCHAR(255) NOT NULL,
-            experience INT,
-            ContatoTelegram VARCHAR(255),
-            ContatoEmail VARCHAR(255),
-            ContatoTelefonico VARCHAR(20),
-            description TEXT
-        )";
+        string operationMessage = string.Empty;
 
         try
         {
-            using (var cmd = new MySqlCommand(query, dbConnection))
-            {
-                cmd.ExecuteNonQuery();
-                operationMessage = "Tabelas criadas com sucesso.";
-            }
+            dbConnection.Open();
+            string filePath = "C:/repo/TelegramBuscaTrabalhoBot/Data/tabelas.sql"; // Substitua pelo caminho correto do seu arquivo
+            string query = File.ReadAllText(filePath); // Lê todo o conteúdo do arquivo SQL
+            MySqlCommand cmd = new MySqlCommand(query, dbConnection);
+            MySqlDataReader reader = cmd.ExecuteReader();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error creating table: {ex.Message}");
+            Console.WriteLine($"Error creating tables: {ex.Message}");
             operationMessage = "Erro ao criar tabelas.";
         }
         finally
         {
             dbConnection.Close();
         }
+
         return operationMessage;
     }
     public void CreateFreelancer(long chatId, string name, string stacks, decimal experienceTime, string portfolio, string contactTelegram, string contactEmail, string contactPhone, string otherContacts)
@@ -137,15 +111,13 @@ public class DatabaseService
                                        $"*Contato Telefônico: * ||{reader["ContactPhone"]}||\n" +
                                        $"*Outros Contatos: * ||{reader["OtherContacts"]}||\n" +
                                        $"*Status: * {Status}\n" +
-                                       $"*LastUpdate: * {reader["LastUpdate"]}\n" +
-                                       $"*RegistrationDate: * {reader["RegistrationDate"]}\n" +
-                                       $"*InactiveDate: * {reader["InactiveDate"]}\n\n";
-
+                                       $"*Última Atualização: * {reader["LastUpdate"]}\n" +
+                                       $"*Data de Registro: * {reader["RegistrationDate"]}\n" +
+                                       $"*Data Inativação: * {reader["InactiveDate"]}\n\n";
 
                     userList.Add(userEntry);
                 }
             }
-
             return userList;
         }
         catch (Exception ex)

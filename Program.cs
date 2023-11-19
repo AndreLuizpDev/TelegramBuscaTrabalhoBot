@@ -22,7 +22,7 @@ class Program
     {
         var dbConnection = new MySqlConnection(connectionString);
         databaseService = new DatabaseService(connectionString);
-        databaseService.InitializeDatabase();
+        databaseService.CreateTablesFromSQLFile();
 
         ReceiverOptions receiverOptions = new()
         {
@@ -156,18 +156,24 @@ class Program
             }
             else if (Command.StartsWith("/listFreelancers"))
             {
-
                 List<string> userList = databaseService.GetUsersList();
 
-                // Enviar cada item da lista como uma mensagem separada
-                foreach (var user in userList)
+                if (userList.Count == 0)
                 {
-                    Console.WriteLine(user);
-                    await botClient.SendTextMessageAsync(chatId, user, parseMode: ParseMode.MarkdownV2);
-                    // Aguarde um curto período de tempo entre as mensagens para evitar limites do Telegram
-                    await Task.Delay(500);
+                    await botClient.SendTextMessageAsync(chatId, "Não há freelancers cadastrados.");
+                }
+                else
+                {
+                    foreach (var user in userList)
+                    {
+                        Console.WriteLine(user);
+                        await botClient.SendTextMessageAsync(chatId, user, parseMode: ParseMode.MarkdownV2);
+                        // Aguarde um curto período de tempo entre as mensagens para evitar limites do Telegram
+                        await Task.Delay(500);
+                    }
                 }
             }
+
             else
             {
                 await botClient.SendTextMessageAsync(message.Chat.Id, response, parseMode: ParseMode.Markdown);
