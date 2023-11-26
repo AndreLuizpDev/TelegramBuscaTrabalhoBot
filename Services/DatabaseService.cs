@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Data.Common;
+using System.Text.RegularExpressions;
+using Google.Protobuf.WellKnownTypes;
 using MySql.Data.MySqlClient;
+using MySqlX.XDevAPI.Relational;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 public class DatabaseService
@@ -14,23 +17,6 @@ public class DatabaseService
     public string GetOperationMessage()
     {
         return operationMessage;
-    }
-
-    public void InitializeDatabase()
-    {
-        try
-        {
-            dbConnection.Open();
-            CreateTablesFromSQLFile();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error initializing database: {ex.Message}");
-        }
-        finally
-        {
-            dbConnection.Close();
-        }
     }
     public string CreateTablesFromSQLFile()
     {
@@ -85,7 +71,6 @@ public class DatabaseService
             dbConnection.Close();
         }
     }
-
     public List<string> GetUsersList()
     {
         List<string> userList = new List<string>();
@@ -105,15 +90,65 @@ public class DatabaseService
                     string userEntry = $"*Nome: * {reader["Name"]}\n" +
                                        $"*Stacks: * {reader["Stacks"]}\n" +
                                        $"*Experiência: * {reader["ExperienceTime"]} anos.\n" +
-                                       $"*Portfolio: * {reader["Portfolio"].ToString().Replace(".", "\\.")}\n" +
-                                       $"*Contato Telegram: * [{reader["Name"]}]({reader["ContactTelegram"].ToString().Replace(".", "\\.")})\n" +
-                                       $"*Contato Email: * ||{reader["ContactEmail"].ToString().Replace(".", "\\.")}||\n" +
+                                       $"*Portfolio: * {reader["Portfolio"]}\n" +
+                                       $"*Contato Telegram: * [{reader["Name"]}]({reader["ContactTelegram"]})\n" +
+                                       $"*Contato Email: * ||{reader["ContactEmail"]}||\n" +
                                        $"*Contato Telefônico: * ||{reader["ContactPhone"]}||\n" +
                                        $"*Outros Contatos: * ||{reader["OtherContacts"]}||\n" +
                                        $"*Status: * {Status}\n" +
                                        $"*Última Atualização: * {reader["LastUpdate"]}\n" +
                                        $"*Data de Registro: * {reader["RegistrationDate"]}\n" +
                                        $"*Data Inativação: * {reader["InactiveDate"]}\n\n";
+
+                    userEntry = AdicionarEscape(userEntry);
+
+                    userList.Add(userEntry);
+                }
+            }
+            return userList;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error retrieving user list: {ex.Message}");
+            // Se ocorrer um erro, você pode retornar uma lista vazia ou lidar com isso de outra maneira
+            return new List<string>();
+        }
+        finally
+        {
+            dbConnection.Close();
+        }
+    }
+    public List<string> GetUsers(long chatId)
+    {
+        List<string> userList = new List<string>();
+        long UserTelegram = chatId;
+
+        try
+        {
+            dbConnection.Open();
+            string query = $"SELECT * FROM Freelancer WHERE UserTelegramID = {UserTelegram}";
+            MySqlCommand cmd = new MySqlCommand(query, dbConnection);
+
+            using (MySqlDataReader reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    var Status = reader["Status"].ToString() == "True" ? "Ativo" : "Inativo";
+
+                    string userEntry = $"*Nome: * {reader["Name"]}\n" +
+                                       $"*Stacks: * {reader["Stacks"]}\n" +
+                                       $"*Experiência: * {reader["ExperienceTime"]} anos.\n" +
+                                       $"*Portfolio: * {reader["Portfolio"]}\n" +
+                                       $"*Contato Telegram: * [{reader["Name"]}]({reader["ContactTelegram"]})\n" +
+                                       $"*Contato Email: * ||{reader["ContactEmail"]}||\n" +
+                                       $"*Contato Telefônico: * ||{reader["ContactPhone"]}||\n" +
+                                       $"*Outros Contatos: * ||{reader["OtherContacts"]}||\n" +
+                                       $"*Status: * {Status}\n" +
+                                       $"*Última Atualização: * {reader["LastUpdate"]}\n" +
+                                       $"*Data de Registr/o: * {reader["RegistrationDate"]}\n" +
+                                       $"*Data Inativação: * {reader["InactiveDate"]}\n\n";
+
+                    userEntry = AdicionarEscape(userEntry);
 
                     userList.Add(userEntry);
                 }
@@ -143,10 +178,15 @@ public class DatabaseService
 
             MySqlDataReader reader = cmd.ExecuteReader();
 
-            if (reader.Read() && !Command.StartsWith("/listFreelancers")) // Se o usuário existir na tabela
+            if (reader.Read()) // Se o usuário existir na tabela
             {
                 // Continue de onde parou, atualizando as informações de acordo com o choice
                 var CurrentRegistration = reader["CurrentRegistration"];
+
+                if (CurrentRegistration == null || string.IsNullOrWhiteSpace(CurrentRegistration.ToString()))
+                {
+                    CurrentRegistration = Command;
+                }
 
                 return CurrentRegistration;
             }
@@ -223,7 +263,7 @@ public class DatabaseService
             dbConnection.Close();
         }
     }
-    public object AtualizarEstado(long telegramUserID, int novoEstado, string Coluna)
+    public object AtualizarEstado(long telegramUserID, object novoEstado, string Coluna)
     {
         try
         {
@@ -272,25 +312,37 @@ public class DatabaseService
             dbConnection.Close();
         }
     }// Função para adicionar barra invertida aos caracteres entre 1 e 126
-    string AddBackslash(object data)
+    static string AdicionarEscape(string input)
     {
-        if (data != null)
+        string pattern = @"[_>#+\-={}.!]";
+        string replacement = @"\$0";
+        string novaString = Regex.Replace(input, pattern, replacement);
+
+        return novaString;
+    }
+    public void excluirCadastroIndividual(long telegramUserID)
+    {
+        try
         {
-            string originalString = data.ToString();
-            string result = "";
-            foreach (char c in originalString)
-            {
-                if (c >= 1 && c <= 126)
-                {
-                    result += '\\' + c;
-                }
-                else
-                {
-                    result += c;
-                }
-            }
-            return result;
+            dbConnection.Open();
+
+            string deleteQuery = $"DELETE FROM Freelancer WHERE UserTelegramID = @UserID";
+            MySqlCommand updateCommand = new MySqlCommand(deleteQuery, dbConnection);
+            updateCommand.Parameters.AddWithValue("@UserID", telegramUserID);
+            updateCommand.ExecuteNonQuery();
+
+            deleteQuery = $"DELETE FROM UserState WHERE TelegramUserID = @UserID";
+            updateCommand = new MySqlCommand(deleteQuery, dbConnection);
+            updateCommand.Parameters.AddWithValue("@UserID", telegramUserID);
+            updateCommand.ExecuteNonQuery();
         }
-        return "";
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error retrieving user list: {ex.Message}");
+        }
+        finally
+        {
+            dbConnection.Close();
+        }
     }
 }

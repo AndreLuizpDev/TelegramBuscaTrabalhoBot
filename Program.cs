@@ -9,6 +9,8 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
 using System.Xml.Linq;
+using Telegram.Bot.Types.ReplyMarkups;
+using static Program;
 
 class Program
 {
@@ -49,7 +51,7 @@ class Program
         List<string> commands = new List<string>
     {
         "*/start* - Start the bot",
-        "*/includeFreelancer* <Name>;<Experience>;<ContatoTelegram>;<ContatoEmail>;<ContatoTelefonico>;<Description> - Add a new user",
+        "*/includeFreelancer* - Add a new freelancer",
         "*/listFreelancers* - List all Freelancers"
     };
 
@@ -69,10 +71,10 @@ class Program
 
         Console.WriteLine($"Received a '{messageText}' message in chat {chatId}.");
 
-        if (messageText != null)
+        if (message != null)
         {
             List<string> availableCommands = GetAvailableCommands();
-            string response = "Available commands:\n" + string.Join("\n", availableCommands);
+            string commandsList = "Available commands:\n" + string.Join("\n", availableCommands);
 
             var Command = databaseService.VerificarEstadoMenu(chatId, messageText).ToString();
 
@@ -101,10 +103,10 @@ class Program
                     case 3:
                         stacks = messageText;
                         databaseService.AtualizarFreelancer(chatId, stacks, "Stacks");
-                        await botClient.SendTextMessageAsync(chatId, "Tempo de experiência: ");
                         databaseService.AtualizarEstado(chatId, 4, "FreelancerState");
                         break;
                     case 4:
+                        await botClient.SendTextMessageAsync(chatId, "Tempo de experiência: ");
                         if (decimal.TryParse(messageText, out experienceTime))
                         {
                             databaseService.AtualizarFreelancer(chatId, experienceTime, "ExperienceTime");
@@ -120,12 +122,25 @@ class Program
                     case 5:
                         portfolio = messageText;
                         databaseService.AtualizarFreelancer(chatId, portfolio, "Portfolio");
-                        await botClient.SendTextMessageAsync(chatId, "Número de Contato (Formato: 5511999999999): ");
+
+                            ReplyKeyboardMarkup replyKeyboardMarkup = new(
+                            keyboardRow: new[] { KeyboardButton.WithRequestContact("Compartilhar Contato"), })
+                            {
+                                ResizeKeyboard = true,
+                                OneTimeKeyboard = true,
+                            };
+
+                            await botClient.SendTextMessageAsync(
+                                chatId: chatId,
+                                text: "Clique no botão abaixo 'Compartilhar Contato' para compartilhar seu contato do telegram (o celular de cadastro ficará visível para o contratante).",
+                                replyMarkup: replyKeyboardMarkup
+                            );
+
                         databaseService.AtualizarEstado(chatId, 6, "FreelancerState");
                         break;
                     case 6:
-                        // Aqui você pode lidar com a lógica para capturar o telefone e definir a variável contactTelegram
-                        contactTelegram = "t.me/+" + messageText;
+                        await botClient.SendTextMessageAsync(message.Chat.Id, message.Contact.PhoneNumber);
+                        contactTelegram = "t.me/" + message.Contact.PhoneNumber;
                         databaseService.AtualizarFreelancer(chatId, contactTelegram, "ContactTelegram");
                         await botClient.SendTextMessageAsync(chatId, "Email de contato: ");
                         databaseService.AtualizarEstado(chatId, 7, "FreelancerState");
@@ -148,9 +163,27 @@ class Program
                         // Aqui você tem todas as informações necessárias para criar o usuário ou realizar ação final
                         await botClient.SendTextMessageAsync(chatId, "Usuário criado com sucesso.");
                         databaseService.AtualizarEstado(chatId, 10, "FreelancerState");
+                        databaseService.AtualizarEstado(chatId, null, "CurrentRegistration");
                         break;
                     case 10:
-                        await botClient.SendTextMessageAsync(chatId, "Welcome to our Job Search Bot! 🤖✨\r\nExplore opportunities, add your freelancer profile, and connect with other users. Use commands like \r\n/includeFreelancer or /listFreelancers to get started. 🚀💼\r\n");
+                        await botClient.SendTextMessageAsync(chatId, "Cadastro existente, deseja editar o seu perfil?");
+                        List<string> userList = databaseService.GetUsers(chatId);
+
+                        if (userList.Count == 0)
+                        {
+                            await botClient.SendTextMessageAsync(chatId, "Não há freelancers cadastrados.");
+                            await botClient.SendTextMessageAsync(message.Chat.Id, commandsList, parseMode: ParseMode.Markdown);
+                        }
+                        else
+                        {
+                            foreach (var user in userList)
+                            {
+                                Console.WriteLine(user);
+                                await botClient.SendTextMessageAsync(chatId, user, parseMode: ParseMode.MarkdownV2);
+                                // Aguarde um curto período de tempo entre as mensagens para evitar limites do Telegram
+                                await Task.Delay(500);
+                            }
+                        }
                         break;
                 }
             }
@@ -161,6 +194,7 @@ class Program
                 if (userList.Count == 0)
                 {
                     await botClient.SendTextMessageAsync(chatId, "Não há freelancers cadastrados.");
+                    await botClient.SendTextMessageAsync(message.Chat.Id, commandsList, parseMode: ParseMode.Markdown);
                 }
                 else
                 {
@@ -173,10 +207,15 @@ class Program
                     }
                 }
             }
-
+            else if (Command.StartsWith("/deleteUser"))
+            {
+                long IdExclusao = (long)Convert.ToDouble(Command.Replace("/deleteUser ", ""));
+                databaseService.excluirCadastroIndividual(IdExclusao);
+                await botClient.SendTextMessageAsync(message.Chat.Id, "Usuário excluído com sucesso!");
+            }
             else
             {
-                await botClient.SendTextMessageAsync(message.Chat.Id, response, parseMode: ParseMode.Markdown);
+                await botClient.SendTextMessageAsync(message.Chat.Id, commandsList, parseMode: ParseMode.Markdown);
             }
         }
 
