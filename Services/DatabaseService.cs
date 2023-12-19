@@ -166,6 +166,99 @@ public class DatabaseService
             dbConnection.Close();
         }
     }
+    public List<string> GetCompanyList()
+    {
+        List<string> companyList = new List<string>();
+
+        try
+        {
+            dbConnection.Open();
+            string query = "SELECT * FROM Company";
+            MySqlCommand cmd = new MySqlCommand(query, dbConnection);
+
+            using (MySqlDataReader reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    var Status = reader["Status"].ToString() == "True" ? "Ativo" : "Inativo";
+
+                    string companyEntry = $"*Nome: * {reader["Name"]}\n" +
+                                          $"*Estado: * {reader["State"]}\n" +
+                                          $"*País: * {reader["Country"]}\n" +
+                                          $"*Contato Telegram: * [{reader["Name"]}]({reader["ContactTelegram"]})\n" +
+                                          $"*Contato Email: * ||{reader["ContactEmail"]}||\n" +
+                                          $"*Contato Telefônico: * ||{reader["ContactPhone"]}||\n" +
+                                          $"*Outros Contatos: * ||{reader["OtherContacts"]}||\n" +
+                                          $"*Status: * {Status}\n" +
+                                          $"*Última Atualização: * {reader["LastUpdate"]}\n" +
+                                          $"*Data de Registro: * {reader["RegistrationDate"]}\n" +
+                                          $"*Data de Inativação: * {reader["InactiveDate"]}\n\n";
+
+                    companyEntry = AdicionarEscape(companyEntry);
+
+                    companyList.Add(companyEntry);
+                }
+            }
+            return companyList;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error retrieving company list: {ex.Message}");
+            // Em caso de erro, você pode retornar uma lista vazia ou lidar com isso de outra maneira
+            return new List<string>();
+        }
+        finally
+        {
+            dbConnection.Close();
+        }
+    }
+    public List<string> GetCompany(long chatId)
+    {
+        List<string> companyList = new List<string>();
+        long UserTelegram = chatId;
+
+        try
+        {
+            dbConnection.Open();
+            string query = $"SELECT * FROM Company WHERE UserTelegramID = {UserTelegram}";
+            MySqlCommand cmd = new MySqlCommand(query, dbConnection);
+
+            using (MySqlDataReader reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    var Status = reader["Status"].ToString() == "True" ? "Ativo" : "Inativo";
+
+                    string companyEntry = $"*Nome: * {reader["Name"]}\n" +
+                                          $"*Estado: * {reader["State"]}\n" +
+                                          $"*País: * {reader["Country"]}\n" +
+                                          $"*Contato Telegram: * [{reader["Name"]}]({reader["ContactTelegram"]})\n" +
+                                          $"*Contato Email: * ||{reader["ContactEmail"]}||\n" +
+                                          $"*Contato Telefônico: * ||{reader["ContactPhone"]}||\n" +
+                                          $"*Outros Contatos: * ||{reader["OtherContacts"]}||\n" +
+                                          $"*Status: * {Status}\n" +
+                                          $"*Última Atualização: * {reader["LastUpdate"]}\n" +
+                                          $"*Data de Registro: * {reader["RegistrationDate"]}\n" +
+                                          $"*Data de Inativação: * {reader["InactiveDate"]}\n\n";
+
+                    companyEntry = AdicionarEscape(companyEntry);
+
+                    companyList.Add(companyEntry);
+                }
+            }
+            return companyList;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error retrieving company list: {ex.Message}");
+            // Em caso de erro, você pode retornar uma lista vazia ou lidar com isso de outra maneira
+            return new List<string>();
+        }
+        finally
+        {
+            dbConnection.Close();
+        }
+    }
     public object VerificarEstadoMenu(long telegramUserID, string Command)
     {
         try
@@ -190,7 +283,7 @@ public class DatabaseService
 
                 return CurrentRegistration;
             }
-            else if (Command.StartsWith("/includeFreelancer")) // Se o usuário não existir na tabela
+            else if (Command.StartsWith("/include")) // Se o usuário não existir na tabela
             {
                 dbConnection.Close();
                 dbConnection.Open();
@@ -218,7 +311,7 @@ public class DatabaseService
             dbConnection.Close();
         }
     }
-    public object VerificarEstado(long telegramUserID)
+    public object VerificarEstado(long telegramUserID, String Coluna)
     {
         try
         {
@@ -235,9 +328,9 @@ public class DatabaseService
             if (reader.Read()) // Se o usuário existir na tabela
             {
                 // Continue de onde parou, atualizando as informações de acordo com o choice
-                int freelancerState = Convert.ToInt32(reader["FreelancerState"]);
+                int userState = Convert.ToInt32(reader[Coluna]);
 
-                return freelancerState;
+                return userState;
             }
             else // Se o usuário não existir na tabela
             {
@@ -311,7 +404,60 @@ public class DatabaseService
         {
             dbConnection.Close();
         }
-    }// Função para adicionar barra invertida aos caracteres entre 1 e 126
+    }
+    public void CreateCompany(long chatId, string name, string state, string country, string contactTelegram, string contactEmail, string contactPhone, string otherContacts)
+    {
+        try
+        {
+            dbConnection.Open();
+            string query = "INSERT INTO Company (UserTelegramID, Name, State, Country, ContactTelegram, ContactEmail, ContactPhone, OtherContacts, Status, Verified, LastUpdate, RegistrationDate, InactiveDate) VALUES (@user_id, @name, @state, @country, @contactTelegram, @contactEmail, @contactPhone, @otherContacts, 1, 0, NOW(), NOW(), NULL)";
+
+            using MySqlCommand cmd = new MySqlCommand(query, dbConnection);
+            cmd.Parameters.AddWithValue("@user_id", chatId);
+            cmd.Parameters.AddWithValue("@name", name);
+            cmd.Parameters.AddWithValue("@state", state);
+            cmd.Parameters.AddWithValue("@country", country);
+            cmd.Parameters.AddWithValue("@contactTelegram", contactTelegram);
+            cmd.Parameters.AddWithValue("@contactEmail", contactEmail);
+            cmd.Parameters.AddWithValue("@contactPhone", contactPhone);
+            cmd.Parameters.AddWithValue("@otherContacts", otherContacts);
+
+            cmd.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating company: {ex.Message}");
+        }
+        finally
+        {
+            dbConnection.Close();
+        }
+    }
+    public object AtualizarCompany(long telegramUserID, object data, string column)
+    {
+        try
+        {
+            dbConnection.Open();
+            // Consulta para atualizar a tabela Company com base na coluna fornecida
+            string updateQuery = $"UPDATE Company SET {column} = @Data, LastUpdate = NOW() WHERE UserTelegramID = @UserID";
+            MySqlCommand updateCommand = new MySqlCommand(updateQuery, dbConnection);
+            updateCommand.Parameters.AddWithValue("@Data", data);
+            updateCommand.Parameters.AddWithValue("@UserID", telegramUserID);
+            updateCommand.ExecuteNonQuery();
+
+            return "ok";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating company data: {ex.Message}");
+            // Em caso de erro, você pode retornar uma mensagem específica ou lidar com isso de outra forma
+            return ex.Message;
+        }
+        finally
+        {
+            dbConnection.Close();
+        }
+    }
     static string AdicionarEscape(string input)
     {
         string pattern = @"[_>#+\-={}.!]";

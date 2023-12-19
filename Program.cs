@@ -52,7 +52,9 @@ class Program
     {
         "*/start* - Start the bot",
         "*/includeFreelancer* - Add a new freelancer",
-        "*/listFreelancers* - List all Freelancers"
+        "*/listFreelancers* - List all Freelancers",
+        "*/includeCompany* - Add a new company",
+        "*/listCompanies* - List all Companies"
     };
 
         return commands;
@@ -84,7 +86,7 @@ class Program
             }
             else if (Command.StartsWith("/includeFreelancer"))
             {
-                var userState = databaseService.VerificarEstado(chatId);
+                var userState = databaseService.VerificarEstado(chatId, "FreelancerState");
 
                 var name = ""; var stacks = ""; var portfolio = ""; var contactTelegram = "";
                 var contactEmail = ""; var contactPhone = ""; var otherContacts = ""; decimal experienceTime = 0;
@@ -92,6 +94,7 @@ class Program
                 {
                     case 1:
                         await botClient.SendTextMessageAsync(chatId, "Digite seu nome: ");
+                        databaseService.AtualizarEstado(chatId, Command, "CurrentRegistration");
                         databaseService.AtualizarEstado(chatId, 2, "FreelancerState");
                         break;
                     case 2:
@@ -139,7 +142,6 @@ class Program
                         databaseService.AtualizarEstado(chatId, 6, "FreelancerState");
                         break;
                     case 6:
-                        await botClient.SendTextMessageAsync(message.Chat.Id, message.Contact.PhoneNumber);
                         contactTelegram = "t.me/" + message.Contact.PhoneNumber;
                         databaseService.AtualizarFreelancer(chatId, contactTelegram, "ContactTelegram");
                         await botClient.SendTextMessageAsync(chatId, "Email de contato: ");
@@ -187,6 +189,98 @@ class Program
                         break;
                 }
             }
+            else if (Command.StartsWith("/includeCompany"))
+            {
+                var userState = databaseService.VerificarEstado(chatId, "CompanyState");
+
+                var name = ""; var state = ""; var country = ""; var contactTelegram = ""; var contactEmail = ""; var contactPhone = ""; var otherContacts = "";
+                var status = 0; var verified = 0;
+
+                switch (userState)
+                {
+                    case 1:
+                        await botClient.SendTextMessageAsync(chatId, "Digite o nome da empresa: ");
+                        databaseService.AtualizarEstado(chatId, Command, "CurrentRegistration");
+                        databaseService.AtualizarEstado(chatId, 2, "CompanyState");
+                        break;
+                    case 2:
+                        name = messageText;
+                        databaseService.CreateCompany(chatId, name, state, country, contactTelegram, contactEmail, contactPhone, otherContacts);
+                        await botClient.SendTextMessageAsync(chatId, "Digite o estado da empresa: ");
+                        databaseService.AtualizarEstado(chatId, 3, "CompanyState");
+                        break;
+                    case 3:
+                        state = messageText;
+                        databaseService.AtualizarCompany(chatId, state, "State"); // Atualiza o campo State na Company
+                        await botClient.SendTextMessageAsync(chatId, "Digite o país da empresa: ");
+                        databaseService.AtualizarEstado(chatId, 4, "CompanyState");
+                        break;
+                    case 4:
+                        country = messageText;
+                        databaseService.AtualizarCompany(chatId, country, "Country"); // Atualiza o campo Country na Company
+                        databaseService.AtualizarEstado(chatId, 5, "CompanyState");
+
+                        ReplyKeyboardMarkup replyKeyboardMarkup = new(
+                        keyboardRow: new[] { KeyboardButton.WithRequestContact("Compartilhar Contato"), })
+                        {
+                            ResizeKeyboard = true,
+                            OneTimeKeyboard = true,
+                        };
+
+                        await botClient.SendTextMessageAsync(
+                            chatId: chatId,
+                            text: "Clique no botão abaixo 'Compartilhar Contato' para compartilhar seu contato do telegram (o celular de cadastro ficará visível para o contratante).",
+                            replyMarkup: replyKeyboardMarkup
+                        );
+
+                        break;
+                    case 5:
+                        contactTelegram = "t.me/" + message.Contact.PhoneNumber;
+                        databaseService.AtualizarCompany(chatId, contactTelegram, "ContactTelegram"); // Atualiza o campo ContactTelegram na Company
+                        await botClient.SendTextMessageAsync(chatId, "Digite o email de contato da empresa: ");
+                        databaseService.AtualizarEstado(chatId, 6, "CompanyState");
+                        break;
+                    case 6:
+                        contactEmail = messageText;
+                        databaseService.AtualizarCompany(chatId, contactEmail, "ContactEmail"); // Atualiza o campo ContactEmail na Company
+                        await botClient.SendTextMessageAsync(chatId, "Digite o telefone de contato da empresa: ");
+                        databaseService.AtualizarEstado(chatId, 7, "CompanyState");
+                        break;
+                    case 7:
+                        contactPhone = messageText;
+                        databaseService.AtualizarCompany(chatId, contactPhone, "ContactPhone"); // Atualiza o campo ContactPhone na Company
+                        await botClient.SendTextMessageAsync(chatId, "Outros contatos da empresa: ");
+                        databaseService.AtualizarEstado(chatId, 8, "CompanyState");
+                        break;
+                    case 8:
+                        otherContacts = messageText;
+                        databaseService.AtualizarCompany(chatId, otherContacts, "OtherContacts"); // Atualiza o campo OtherContacts na Company
+                        databaseService.AtualizarEstado(chatId, 9, "CompanyState");
+                        databaseService.AtualizarEstado(chatId, null, "CurrentRegistration");
+                        await botClient.SendTextMessageAsync(chatId, "Cadastro de empresa finalizado com sucesso!");
+                        break;
+                    case 9:
+                        await botClient.SendTextMessageAsync(chatId, "Cadastro de empresa existente, deseja editar o seu perfil?");
+                        List<string> userList = databaseService.GetCompany(chatId);
+
+                        if (userList.Count == 0)
+                        {
+                            await botClient.SendTextMessageAsync(chatId, "Não há empresas cadastrados.");
+                            await botClient.SendTextMessageAsync(message.Chat.Id, commandsList, parseMode: ParseMode.Markdown);
+                        }
+                        else
+                        {
+                            foreach (var user in userList)
+                            {
+                                Console.WriteLine(user);
+                                await botClient.SendTextMessageAsync(chatId, user, parseMode: ParseMode.MarkdownV2);
+                                // Aguarde um curto período de tempo entre as mensagens para evitar limites do Telegram
+                                await Task.Delay(500);
+                            }
+                        }
+                        break;
+                }
+            }
             else if (Command.StartsWith("/listFreelancers"))
             {
                 List<string> userList = databaseService.GetUsersList();
@@ -202,6 +296,26 @@ class Program
                     {
                         Console.WriteLine(user);
                         await botClient.SendTextMessageAsync(chatId, user, parseMode: ParseMode.MarkdownV2);
+                        // Aguarde um curto período de tempo entre as mensagens para evitar limites do Telegram
+                        await Task.Delay(500);
+                    }
+                }
+            }
+            else if (Command.StartsWith("/listCompanies"))
+            {
+                List<string> companyList = databaseService.GetCompanyList();
+
+                if (companyList.Count == 0)
+                {
+                    await botClient.SendTextMessageAsync(chatId, "Não há companhias cadastradas.");
+                    await botClient.SendTextMessageAsync(message.Chat.Id, commandsList, parseMode: ParseMode.Markdown);
+                }
+                else
+                {
+                    foreach (var company in companyList)
+                    {
+                        Console.WriteLine(company);
+                        await botClient.SendTextMessageAsync(chatId, company, parseMode: ParseMode.MarkdownV2);
                         // Aguarde um curto período de tempo entre as mensagens para evitar limites do Telegram
                         await Task.Delay(500);
                     }
